@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>扫一扫</title>
+    {% load static %}
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $.get("/get_qr", function(data){
+              if(data.qr_image == "fine"){
+                  $("#QrCodeImg").attr("src", "/static/qr.jpg");
+                  longPolling(data.qr_token);
+              }
+            });
+            function longPolling(qrurl) {
+            $.ajax({
+                url:"http://localhost:8000/polling/"+qrurl,
+                type:"GET",
+                data: {"timed": new Date().getTime()},
+                dataType: "text",
+                timeout: 8000,
+                error:function (XMLHttpRequest,textStatus,errorThrown) {
+                    longPolling(qrurl)
+                },
+                success:function (data) {
+                    var obj = eval("("+data+")");
+                    if(obj.code ==10006){//登录成功
+                        //重定向
+                        document.getElementById("text").innerHTML="登录成功，欢迎您："+obj.message;
+                        $("#QrCodeImg").hide()
+                    }else if(obj.code==10002){//失效
+                        document.getElementById("text").innerHTML="二维码已失效";
+                        $("#QrCodeImg").attr("src", "/static/r.jpg");
+                    }else if(obj.code==10003){//过期
+                        document.getElementById("text").innerHTML="二维码已过期";
+                        $("#QrCodeImg").attr("src", "/static/q.jpg");
+                    }else if(obj.code==10001){////还是没有人扫码确认
+                        longPolling(qrurl)
+                    }
+                }
+
+            });
+        }
+        })
+    </script>
+</head>
+<body>
+    <div id="divCon" style="text-align: center">
+        <h1 id="text"></h1>
+        <img src="" id="QrCodeImg"/>
+    </div>
+</body>
+</html>
